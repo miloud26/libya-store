@@ -89,7 +89,7 @@ function Form({ id }) {
   const { price, delevery, url, name: title } = product;
 
   const normalizedPhone = phone.replace(/\s+/g, "");
-  const validPhone = /^0[5-7]\d{8}$/.test(normalizedPhone);
+  const validPhone = /^0[9]\d{8}$/.test(normalizedPhone);
   const correctNumber = Boolean(normalizedPhone) && !validPhone;
 
   useEffect(() => {

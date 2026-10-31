@@ -130,4 +130,26 @@ export const data = [
     description:
       "سهّلي إخراج المقليات وصفّي الزيت الزايد بسهولة بأداة عملية تجمع بين الملقط والمصفاة في تصميم واحد من الستانلس ستيل.",
   },
+  {
+    id: "l-6",
+    name: "جيلي رجالي أنيق",
+    slug: "",
+    phone: "",
+    hashprice: "269",
+    price: "229",
+    delevery: "0",
+    clr: [],
+    size: [],
+    descImag1: `${process.env.PUBLIC_URL}/images/06/desc.webp`,
+    themImg: `${process.env.PUBLIC_URL}/images/06/th.webp`,
+    url: "https://script.google.com/macros/s/AKfycbwNU_6_OCP7mKNpwcfTOw1sgn8HodRwZ-brbOt8tS4NNj-r0eYTY1Qij3kx7_f4UGqmOw/exec",
+    // Optional fields used by the store pages (homepage, /products, cards).
+    // They are additive only — the product page and the order flow never read
+    // them, so the existing behaviour is unchanged.
+    category: "ملابس رجالي",
+    featured: true,
+    badge: "الأكثر طلباً",
+    description:
+      "جيلي رجالي أنيق وعملي، فيه سوستة من قدام وجيبين، يعطيك لوك مرتب ويناسب لبستك اليومية.",
+  },
 ];
