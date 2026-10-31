@@ -1,0 +1,84 @@
+import { useEffect } from "react";
+
+import { Box, Button, Paper, Typography } from "@mui/material";
+import CheckCircleRoundedIcon from "@mui/icons-material/CheckCircleRounded";
+import { useNavigate } from "react-router-dom";
+
+import { readConfirmedOrder } from "../confirmedOrder.js";
+
+// The Thank You page is a confirmation destination only. Conversion tracking is
+// configured outside the app (Events Manager Event Builder), so this page
+// reports nothing on its own beyond the pixel page view loaded in index.html.
+//
+// It is reachable ONLY after the order endpoint answered {"success":true} in
+// this tab. Any other visit (typed URL, bookmark, shared link, reload of a new
+// tab) is sent back to the shop instead of claiming a successful order.
+export default function ThankYou() {
+  const navigate = useNavigate();
+  const confirmedOrder = readConfirmedOrder();
+
+  useEffect(() => {
+    if (!confirmedOrder) {
+      navigate(-1);
+    }
+  }, [confirmedOrder, navigate]);
+
+  if (!confirmedOrder) {
+    return null;
+  }
+
+  const { summary } = confirmedOrder;
+
+  return (
+    <Box className="store" dir="rtl">
+      <Box className="topbar">
+        الدفع عند الاستلام متوفر • توصيل سريع إلى 69 ولاية
+      </Box>
+
+      <Box className="thank-you-wrap">
+        <Paper className="order-card thank-you-card">
+          <Box className="success-mark" aria-hidden="true">
+            <CheckCircleRoundedIcon />
+          </Box>
+
+          <Typography component="h1" className="thank-you-title">
+            تم تسجيل طلبك بنجاح
+          </Typography>
+
+          <Typography className="thank-you-text">
+            كن على استعداد, سيتم الإتصال بك بعد دقائق من فريق خدمة الزبائن
+            لتأكيد طلبيتك
+          </Typography>
+          <Typography className="thank-you-text">
+            نعلم زبائننا الأوفياء أننا لا نرسل طلبات دون تأكيدها لأنها تسبب لنا
+            خسائر كبيرة
+          </Typography>
+
+          {summary && (
+            <Box>
+              {[]
+                .filter(([, value]) => value !== undefined && value !== "")
+                .map(([label, value]) => (
+                  <Box className="summary-row" key={label}>
+                    <span className="label">{label}</span>
+                    <span className="value">{value}</span>
+                  </Box>
+                ))}
+            </Box>
+          )}
+
+          <Typography className="thank-you-note">
+            الدفع عند الاستلام • لا حاجة لأي إجراء إضافي من جهتك
+          </Typography>
+
+          <Button
+            onClick={() => navigate(-1)}
+            className="primary thank-you-cta"
+          >
+            العودة إلى المتجر
+          </Button>
+        </Paper>
+      </Box>
+    </Box>
+  );
+}

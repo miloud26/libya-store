@@ -1,0 +1,731 @@
+import React, { useEffect, useMemo, useRef, useState } from "react";
+
+import { Box, Typography, TextField, Button } from "@mui/material";
+import { useNavigate } from "react-router-dom";
+import { data } from "../data.js";
+import { confirmOrder } from "../confirmedOrder.js";
+
+// Google Apps Script always answers with HTTP 200, even when the request was
+// rejected (unknown function, thrown exception, missing permission, ...).
+// Those answers are Google error pages, not saved orders, so a successful
+// transport response alone is NOT proof that the order exists.
+const ORDER_REJECTED_MARKERS = [
+  "script function not found",
+  "fonction de script introuvable",
+  "función de secuencia de comandos no encontrada",
+  "exception:",
+  "exception :",
+  "accounts.google.com",
+  "authorization is required",
+  "autorisation requise",
+  "unable to open the file",
+];
+
+// The order is confirmed ONLY by the machine-readable confirmation the Apps
+// Script returns after sheet.appendRow() succeeded: {"success":true}.
+// Invalid JSON, an HTML rejection page, an empty body, {"success":false} or any
+// other shape is "not saved" and must never be treated as a real order.
+const confirmsOrderSaved = (body) => {
+  let payload;
+
+  try {
+    payload = JSON.parse(body);
+  } catch (parseError) {
+    return false;
+  }
+
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+    return false;
+  }
+
+  return payload.success === true;
+};
+
+const orderWasSaved = async (response) => {
+  let body = "";
+
+  try {
+    body = await response.text();
+  } catch (readError) {
+    console.warn("Could not read order response:", readError);
+
+    return false;
+  }
+
+  const normalizedBody = body.toLowerCase();
+
+  // Google rejection / authorization pages: never a saved order.
+  if (
+    ORDER_REJECTED_MARKERS.some((marker) => normalizedBody.includes(marker))
+  ) {
+    return false;
+  }
+
+  // Authoritative rule: only {"success":true} authorizes a confirmed order.
+  return confirmsOrderSaved(body);
+};
+
+function Form({ id }) {
+  const [wilayaCommuneInfo, setWilayaCommuneInfo] = useState([]);
+
+  const [name, setName] = useState("");
+  const [phone, setPhone] = useState("");
+  const [wilaya, setWilaya] = useState("");
+  const [commune, setCommune] = useState("");
+
+  const [quantity, setQuantity] = useState("1");
+  const [selectedOffer /*setSelectedOffer*/] = useState("single");
+
+  const fakeBtn = false;
+
+  const [isDelevery] = useState(false);
+  const [submitError, setSubmitError] = useState("");
+  const [orderCooldown, setOrderCooldown] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const phoneInput = useRef(null);
+  const isSubmittingRef = useRef(false);
+  const navigate = useNavigate();
+
+  const product = data.find((item) => item.id === id) || data[0] || {};
+
+  const { price, delevery, url, name: title } = product;
+
+  useEffect(() => {
+    let active = true;
+
+    import("./wilayaCommuneInfo.js")
+      .then((module) => {
+        if (active) {
+          setWilayaCommuneInfo(module.wilayaCommuneInfo);
+        }
+      })
+      .catch((error) => {
+        console.error("Failed to load wilaya data:", error);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const wilayaInfo = useMemo(() => {
+    return wilayaCommuneInfo.map(({ id, name }) => ({
+      id,
+      name,
+    }));
+  }, [wilayaCommuneInfo]);
+
+  const communes = useMemo(() => {
+    const selectedWilaya = wilayaCommuneInfo.find(
+      (item) => item.name.split(" - ")[0].trim() === wilaya,
+    );
+
+    if (!selectedWilaya) return [];
+
+    return Object.keys(selectedWilaya)
+      .filter((key) => /^com\d+$/.test(key))
+      .map((key) => selectedWilaya[key])
+      .filter(Boolean);
+  }, [wilayaCommuneInfo, wilaya]);
+
+  const normalizedPhone = phone.replace(/\s+/g, "");
+  const validPhone = /^0[5-7]\d{8}$/.test(normalizedPhone);
+  const correctNumber = Boolean(normalizedPhone) && !validPhone;
+  const isFormValid =
+    validPhone && Boolean(name.trim()) && Boolean(wilaya) && Boolean(commune);
+
+  useEffect(() => {
+    const lastOrderTime = localStorage.getItem("lastOrderTime");
+
+    if (!lastOrderTime) return;
+
+    const twentyFourHours = 24 * 60 * 60 * 1000;
+    const elapsedTime = Date.now() - Number(lastOrderTime);
+
+    if (elapsedTime < twentyFourHours) {
+      setOrderCooldown(true);
+
+      const remainingTime = twentyFourHours - elapsedTime;
+
+      const timeout = setTimeout(() => {
+        localStorage.removeItem("lastOrderTime");
+        localStorage.removeItem("lastOrderId");
+
+        setOrderCooldown(false);
+        setSubmitError("");
+      }, remainingTime);
+
+      return () => clearTimeout(timeout);
+    }
+
+    localStorage.removeItem("lastOrderTime");
+    localStorage.removeItem("lastOrderId");
+
+    setOrderCooldown(false);
+  }, []);
+
+  const handleSubmitOrder = async (e) => {
+    e.preventDefault();
+
+    if (isSubmittingRef.current) {
+      return;
+    }
+
+    const lastOrderTime = localStorage.getItem("lastOrderTime");
+    const twentyFourHours = 24 * 60 * 60 * 1000;
+
+    if (lastOrderTime && Date.now() - Number(lastOrderTime) < twentyFourHours) {
+      setOrderCooldown(true);
+
+      setSubmitError(
+        "لقد قمت بالفعل بإرسال طلب. يمكنك إرسال طلب جديد بعد مرور 24 ساعة.",
+      );
+
+      return;
+    }
+
+    if (!validPhone) {
+      phoneInput.current?.focus();
+      return;
+    }
+
+    if (!name.trim() || !wilaya || !commune) {
+      return;
+    }
+
+    if (!url) {
+      setSubmitError("تعذر إرسال الطلب. رابط الإرسال غير متوفر.");
+      return;
+    }
+
+    isSubmittingRef.current = true;
+
+    setIsSubmitting(true);
+    setSubmitError("");
+
+    const orderId =
+      typeof crypto !== "undefined" && crypto.randomUUID
+        ? crypto.randomUUID()
+        : `${Date.now()}-${Math.random().toString(36).substring(2, 12)}`;
+
+    try {
+      const formData = new FormData();
+
+      const now = new Date();
+
+      formData.append(
+        "date",
+        `${now.getDate()}/${now.getMonth() + 1} - ${now.getHours()}H : ${now.getMinutes()}M`,
+      );
+
+      formData.append("orderId", orderId);
+      formData.append("product", title);
+      formData.append("name", name.trim());
+      formData.append("phone", normalizedPhone);
+      formData.append("wilaya", wilaya);
+      formData.append("commune", commune);
+
+      const orderQty = Math.max(1, Number(quantity) || 1);
+
+      const productQty = selectedOffer === "bundle" ? orderQty * 3 : orderQty;
+
+      const productsPrice =
+        selectedOffer === "bundle"
+          ? Number(price) * 2 * orderQty
+          : Number(price) * orderQty;
+
+      const deliveryPrice =
+        delevery.trim() !== "" && !isNaN(Number(delevery))
+          ? Number(delevery)
+          : 0;
+
+      formData.append("quantity", productQty.toString());
+
+      formData.append(
+        "offer",
+        selectedOffer === "bundle" ? "02 + 01 مجاناً" : "01",
+      );
+
+      formData.append("prix", String(productsPrice + deliveryPrice));
+
+      const response = await fetch(url, {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!response.ok) {
+        throw new Error(`Order request failed (${response.status})`);
+      }
+
+      // The order endpoint (Google Apps Script) also answers HTTP 200 when it
+      // rejects the request, so the response must be confirmed as a saved order
+      // before the order is treated as successful.
+      const saved = await orderWasSaved(response);
+
+      if (!saved) {
+        throw new Error("Order was not confirmed by the order endpoint");
+      }
+
+      localStorage.setItem("lastOrderTime", Date.now().toString());
+
+      localStorage.setItem("lastOrderId", orderId);
+
+      setOrderCooldown(true);
+      setSubmitError("");
+
+      // Only a real, server-confirmed order may open the Thank You page. The
+      // marker is written here and verified again by that page.
+      confirmOrder({
+        product: "créme psoriasis",
+        quantity: productQty,
+        offer: selectedOffer === "bundle" ? "02 + 01 مجاناً" : "01",
+        total: productsPrice + deliveryPrice,
+      });
+
+      navigate("/thank-you");
+    } catch (error) {
+      console.error("Order error:", error);
+
+      isSubmittingRef.current = false;
+
+      setIsSubmitting(false);
+
+      setSubmitError("تعذر إرسال الطلب. يرجى المحاولة مرة أخرى.");
+    }
+  };
+
+  return (
+    <Box>
+      {isDelevery ? (
+        <Box margin="50px 0">
+          <Typography
+            sx={{
+              fontSize: "32px",
+              textAlign: "center",
+            }}
+          >
+            نعتذر، التوصيل غير متوفر لولايتكم
+          </Typography>
+
+          <Typography
+            sx={{
+              fontSize: "32px",
+              textAlign: "center",
+            }}
+          >
+            شكرا لكم
+          </Typography>
+        </Box>
+      ) : (
+        <Box>
+          {fakeBtn ? (
+            <Box margin="50px 0">
+              <Typography
+                sx={{
+                  fontSize: "32px",
+                  textAlign: "center",
+                }}
+              >
+                {`التوصيل لولايتك ${wilaya} غير متوفر الآن`}
+              </Typography>
+
+              <Typography
+                sx={{
+                  fontSize: "32px",
+                  textAlign: "center",
+                }}
+              >
+                نرجو المعذرة وشكراً
+              </Typography>
+            </Box>
+          ) : (
+            <Box
+              sx={{
+                width: "100%",
+                direction: "rtl",
+              }}
+            >
+              <form
+                onSubmit={handleSubmitOrder}
+                autoComplete="off"
+                style={{
+                  border: "1px solid #d9d9d9",
+                  borderRadius: "4px",
+                  padding: "20px 15px 16px",
+                  margin: 0,
+                  backgroundColor: "#fff",
+                  direction: "rtl",
+                  boxSizing: "border-box",
+                }}
+              >
+                <Typography
+                  sx={{
+                    textAlign: "center",
+                    fontSize: {
+                      xs: "14px",
+                      sm: "15px",
+                    },
+                    fontWeight: 500,
+                    color: "#222",
+                    lineHeight: 1.7,
+                    marginBottom: "18px",
+                  }}
+                >
+                  للطلب أدخل معلوماتك في الخانات أسفله ⬇⬇ ثم إضغط على "إضغط هنا
+                  للطلب"
+                </Typography>
+
+                <Box
+                  sx={{
+                    display: "grid",
+                    gridTemplateColumns: {
+                      xs: "1fr",
+                      sm: "1fr 1fr",
+                    },
+                    gap: "15px",
+                  }}
+                >
+                  <TextField
+                    inputRef={phoneInput}
+                    required
+                    fullWidth
+                    type="tel"
+                    inputMode="numeric"
+                    variant="outlined"
+                    placeholder="رقم الهاتف"
+                    value={phone}
+                    disabled={isSubmitting}
+                    inputProps={{
+                      dir: "rtl",
+                      "aria-label": "رقم الهاتف",
+                      maxLength: 10,
+                    }}
+                    onChange={(e) => setPhone(e.target.value)}
+                    sx={{
+                      "& .MuiOutlinedInput-root": {
+                        height: "50px",
+                        borderRadius: "3px",
+                        fontSize: "14px",
+                      },
+                      "& input::placeholder": {
+                        opacity: 1,
+                        color: "#b7b7b7",
+                      },
+                    }}
+                  />
+                  {correctNumber && (
+                    <Typography
+                      sx={{
+                        color: "#d32f2f",
+                        fontSize: "12px",
+                        textAlign: "right",
+                        marginTop: "6px",
+                      }}
+                    >
+                      أدخل رقم هاتف صحيح
+                    </Typography>
+                  )}
+                  <TextField
+                    required
+                    fullWidth
+                    variant="outlined"
+                    placeholder="الاسم الكامل"
+                    value={name}
+                    disabled={isSubmitting}
+                    inputProps={{
+                      dir: "rtl",
+                      "aria-label": "الاسم الأول",
+                    }}
+                    onChange={(e) => setName(e.target.value)}
+                    sx={{
+                      "& .MuiOutlinedInput-root": {
+                        height: "50px",
+                        borderRadius: "3px",
+                        fontSize: "14px",
+                      },
+                      "& input::placeholder": {
+                        opacity: 1,
+                        color: "#b7b7b7",
+                      },
+                    }}
+                  />
+
+                  <select
+                    className="fast-select"
+                    required
+                    aria-label="الولاية"
+                    value={wilaya}
+                    disabled={isSubmitting}
+                    onChange={(e) => {
+                      setCommune("");
+                      setWilaya(e.target.value);
+                    }}
+                  >
+                    <option value="">اختر الولاية</option>
+
+                    {wilayaInfo.slice(1).map((item) => (
+                      <option key={item.id} value={item.name.split(" - ")[0]}>
+                        {item.id} -{" "}
+                        {item.name.split(" - ").slice(1).join(" - ").trim() ||
+                          item.name}
+                      </option>
+                    ))}
+                  </select>
+
+                  <select
+                    className="fast-select"
+                    required
+                    aria-label="البلدية"
+                    value={commune}
+                    disabled={!wilaya || isSubmitting}
+                    onChange={(e) => setCommune(e.target.value)}
+                  >
+                    <option value="">اختر البلدية</option>
+
+                    {communes.map((item) => (
+                      <option key={item} value={item.split(" - ")[0]}>
+                        {item.split(" - ").slice(1).join(" - ").trim() || item}
+                      </option>
+                    ))}
+                  </select>
+                </Box>
+
+                {submitError && (
+                  <Typography
+                    role="alert"
+                    sx={{
+                      color: "#d32f2f",
+                      fontSize: "13px",
+                      textAlign: "right",
+                      marginTop: "6px",
+                    }}
+                  >
+                    {submitError}
+                  </Typography>
+                )}
+
+                {orderCooldown && (
+                  <Typography
+                    sx={{
+                      color: "#d32f2f",
+                      fontSize: "13px",
+                      textAlign: "center",
+                      marginTop: "10px",
+                      fontWeight: 600,
+                    }}
+                  >
+                    لقد قمت بالفعل بإرسال طلب. يمكنك إرسال طلب جديد بعد مرور 24
+                    ساعة.
+                  </Typography>
+                )}
+                <Box
+                  sx={{
+                    width: "100%",
+                    mt: 2,
+                    mb: 2,
+                    p: 2,
+                    boxSizing: "border-box",
+                    backgroundColor: "#f8f8f8",
+                    border: "1px solid #e5e5e5",
+                    borderRadius: "10px",
+                    direction: "rtl",
+                  }}
+                >
+                  <Box>
+                    <div
+                      dir="rtl"
+                      style={{
+                        boxSizing: "border-box",
+                        width: "100%",
+                        margin: "0 0 10px",
+                        padding: "12px 14px",
+                        background: "#f7f7f7",
+                        border: "1px solid #e2e2e2",
+                        borderRadius: "10px",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        gap: "8px",
+                        fontFamily: "Arial, sans-serif",
+                        textAlign: "center",
+                        color: "#222",
+                      }}
+                    >
+                      <span style={{ fontSize: "19px" }}>🎁</span>
+                      <span style={{ fontSize: "14px", lineHeight: 1.7 }}>
+                        عند طلب{" "}
+                        <strong style={{ fontSize: "16px" }}>كمية 2</strong>{" "}
+                        <span style={{ color: "#16803c", fontWeight: 700 }}>
+                          التوصيل مجاني!
+                        </span>
+                      </span>
+                    </div>
+                  </Box>
+                  <Box
+                    sx={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      py: 1,
+                      fontSize: "15px",
+                      color: "#555",
+                    }}
+                  >
+                    <span>سعر المنتج</span>
+                    <strong style={{ color: "#222", fontWeight: 600 }}>
+                      {product.price} دل
+                    </strong>
+                  </Box>
+
+                  <Box
+                    sx={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      py: 1,
+                      fontSize: "15px",
+                      color: "#555",
+                    }}
+                  >
+                    <span>سعر التوصيل</span>
+                    <strong style={{ color: "#222", fontWeight: 600 }}>
+                      {/*+quantity === 1 || product.delevery == 0
+                        ? `${+product.delevery} دل`
+                        : "مجاني"*/}{" "}
+                      مجاني
+                    </strong>
+                  </Box>
+
+                  <Box
+                    sx={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      mt: 1,
+                      pt: 1.5,
+                      borderTop: "1px solid #ddd",
+                      fontSize: "18px",
+                      fontWeight: 700,
+                    }}
+                  >
+                    <span>المجموع</span>
+                    <strong style={{ fontSize: "21px", fontWeight: 800 }}>
+                      {+quantity === 1
+                        ? +product.price + +product.delevery
+                        : +product.price * +quantity}{" "}
+                      دل
+                    </strong>
+                  </Box>
+                </Box>
+                <Box
+                  sx={{
+                    marginTop: "18px",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "14px",
+                    direction: "rtl",
+                  }}
+                >
+                  <Box
+                    sx={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "10px",
+                      flexShrink: 0,
+                    }}
+                  >
+                    <Button
+                      type="button"
+                      disabled={isSubmitting}
+                      onClick={() =>
+                        setQuantity((q) => String(Math.max(1, Number(q) - 1)))
+                      }
+                      sx={{
+                        minWidth: "31px",
+                        width: "31px",
+                        height: "31px",
+                        border: "1px solid #ddd",
+                        color: "#222",
+                        backgroundColor: "#fff",
+                        borderRadius: "2px",
+                        padding: 0,
+                        fontSize: "20px",
+                      }}
+                    >
+                      −
+                    </Button>
+
+                    <Typography
+                      sx={{
+                        minWidth: "18px",
+                        textAlign: "center",
+                        fontSize: "16px",
+                        fontWeight: 700,
+                      }}
+                    >
+                      {quantity}
+                    </Typography>
+
+                    <Button
+                      type="button"
+                      disabled={isSubmitting}
+                      onClick={() => setQuantity((q) => String(Number(q) + 1))}
+                      sx={{
+                        minWidth: "31px",
+                        width: "31px",
+                        height: "31px",
+                        border: "1px solid #ddd",
+                        color: "#222",
+                        backgroundColor: "#fff",
+                        borderRadius: "2px",
+                        padding: 0,
+                        fontSize: "20px",
+                      }}
+                    >
+                      +
+                    </Button>
+                  </Box>
+
+                  <Button
+                    disabled={!isFormValid || orderCooldown || isSubmitting}
+                    variant="contained"
+                    type="submit"
+                    sx={{
+                      flex: 1,
+                      minWidth: 0,
+                      minHeight: "47px",
+                      margin: 0,
+                      color: "#fff",
+                      backgroundColor: "#000",
+                      borderRadius: 0,
+                      fontSize: {
+                        xs: "15px",
+                        sm: "16px",
+                      },
+                      fontWeight: 800,
+                      boxShadow: "none",
+                      "&:hover": {
+                        backgroundColor: "#111",
+                        boxShadow: "none",
+                      },
+                      "&.Mui-disabled": {
+                        backgroundColor: "#000",
+                        color: "#fff",
+                        opacity: 0.65,
+                      },
+                    }}
+                  >
+                    {isSubmitting ? "جاري إرسال الطلب..." : "إضغط هنا للطلب"}
+                  </Button>
+                </Box>
+              </form>
+            </Box>
+          )}
+        </Box>
+      )}
+    </Box>
+  );
+}
+
+export default React.memo(Form);

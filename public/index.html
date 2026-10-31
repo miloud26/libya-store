@@ -1,0 +1,318 @@
+<!doctype html>
+<html lang="ar">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#fffaf3" />
+    <meta
+      name="description"
+      content="سوار ذكي لكل علاقة — الدفع عند الاستلام وتوصيل سريع إلى 58 ولاية."
+    />
+    <title>المتجر الجزائري</title>
+
+    <!-- Fonts: preconnect + non-blocking stylesheet. The webfont never blocks
+         first paint; text renders with Tahoma and swaps in when ready. -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="preload"
+      as="style"
+      href="https://fonts.googleapis.com/css2?family=Noto+Naskh+Arabic:wght@400;600;700;800&family=Rubik:wght@400;600;700;800&display=swap"
+    />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Noto+Naskh+Arabic:wght@400;600;700;800&family=Rubik:wght@400;600;700;800&display=swap"
+      media="print"
+      onload="this.media = 'all'"
+    />
+    <noscript>
+      <link
+        rel="stylesheet"
+        href="https://fonts.googleapis.com/css2?family=Noto+Naskh+Arabic:wght@400;600;700;800&family=Rubik:wght@400;600;700;800&display=swap"
+      />
+    </noscript>
+
+    <!-- Start the above-the-fold image download immediately, in parallel with
+         the JS bundle, instead of waiting for React to mount and render it. -->
+    <!-- Route -> chunk map. Injected at build time by
+         scripts/preload-route-chunks.js; stays null when that step has not
+         run, which simply disables the preloads. -->
+    <script>
+      window.__routeChunks = null;
+    </script>
+    <script>
+      (function () {
+        var path = window.location.pathname;
+        var isLanding =
+          path.indexOf("landingpage01") !== -1 ||
+          path.indexOf("/landing/") === 0;
+        var isProduct =
+          path.indexOf("page01") !== -1 || path.indexOf("/product/") === 0;
+        var isProductsList =
+          !isProduct && !isLanding && path.indexOf("/products") === 0;
+        var route = isLanding
+          ? "landing"
+          : isProduct
+            ? "product"
+            : isProductsList
+              ? "products"
+              : "home";
+
+        // Route chunks. The map is filled in at build time by
+        // scripts/preload-route-chunks.js from webpack's own output, so only
+        // the chunks of the route being opened are fetched — never another
+        // page's code, and code splitting stays exactly as it is. The route
+        // is still rendered by React.lazy; this only removes the wait for
+        // main.js to finish evaluating.
+        var routeChunks = window.__routeChunks;
+
+        if (routeChunks && routeChunks[route]) {
+          var chunkFiles = routeChunks[route];
+
+          for (var c = 0; c < chunkFiles.length; c += 1) {
+            var chunkLink = document.createElement("link");
+            var isCss = /\.css$/.test(chunkFiles[c]);
+
+            chunkLink.rel = "preload";
+            chunkLink.as = isCss ? "style" : "script";
+            chunkLink.href = chunkFiles[c];
+            document.head.appendChild(chunkLink);
+          }
+        }
+
+        if (isLanding) {
+          // The landing source, so the first paint can show the blurred
+          // artwork preview instead of a generic skeleton.
+          document.documentElement.className += " route-landing";
+        }
+
+        // Above-the-fold image of this route. Every picture is a local file
+        // under /images, and the markup uses the same URL, so the preload is
+        // always reused and never downloaded twice.
+        var heroImage = isLanding
+          ? "/images/01/desc.webp"
+          : isProduct || route === "home"
+            ? "/images/01/th.webp"
+            : null;
+
+        if (!heroImage) {
+          return;
+        }
+
+        var preload = document.createElement("link");
+
+        preload.rel = "preload";
+        preload.as = "image";
+        preload.href = heroImage;
+        preload.setAttribute("fetchpriority", "high");
+
+        // The tracking scripts below wait for this flag, so the third-party
+        // pixels never pull bytes while the LCP image is still on the wire.
+        // (Chrome hides a pending preload from Resource Timing, so we cannot
+        // detect it that way.)
+        window.__storeMediaPending = true;
+
+        var clearPending = function () {
+          window.__storeMediaPending = false;
+        };
+
+        preload.addEventListener("load", clearPending, { once: true });
+        preload.addEventListener("error", clearPending, { once: true });
+
+        document.head.appendChild(preload);
+      })();
+    </script>
+
+    <!-- Instant first paint: branded background + skeleton shown before (and
+         while) the app bundle loads, so the page never looks blank. -->
+    <style>
+      html {
+        background: #fffaf3;
+      }
+      body {
+        margin: 0;
+      }
+      .boot {
+        min-height: 100vh;
+        background: #fffaf3;
+      }
+      .boot-bar {
+        height: 36px;
+        background: #282018;
+      }
+      .boot-body {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 26px;
+        padding: 40px 16px;
+      }
+      .boot-block {
+        width: 100%;
+        max-width: 560px;
+        border-radius: 18px;
+        background: linear-gradient(
+          100deg,
+          #f6ecdd 20%,
+          #fff8ee 40%,
+          #f6ecdd 60%
+        );
+        background-size: 220% 100%;
+        animation: boot-shimmer 1.25s linear infinite;
+      }
+      .boot-visual {
+        aspect-ratio: 1 / 1;
+      }
+      .boot-line {
+        height: 22px;
+        border-radius: 10px;
+      }
+      .boot-line.short {
+        max-width: 300px;
+        height: 16px;
+      }
+      /* Landing route: the boot skeleton keeps the exact shape of the artwork
+         so the long page does not jump while the image streams in. */
+      .art-lqip,
+      .route-landing .boot-visual {
+        background-color: #f6ecdd;
+      }
+      .route-landing .boot-body {
+        padding: 0;
+        gap: 0;
+        align-items: stretch;
+      }
+      .route-landing .boot-visual {
+        max-width: none;
+        border-radius: 0;
+        animation: none;
+        aspect-ratio: 1080 / 9720;
+      }
+      .route-landing .boot-line {
+        display: none;
+      }
+      @keyframes boot-shimmer {
+        from {
+          background-position: 120% 0;
+        }
+        to {
+          background-position: -120% 0;
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .boot-block {
+          animation: none;
+        }
+      }
+    </style>
+
+    <!-- Meta Pixel Code-->
+    <script>
+      !(function (f, b, e, v, n, t, s) {
+        if (f.fbq) return;
+        n = f.fbq = function () {
+          n.callMethod
+            ? n.callMethod.apply(n, arguments)
+            : n.queue.push(arguments);
+        };
+        if (!f._fbq) f._fbq = n;
+        n.push = n;
+        n.loaded = !0;
+        n.version = "2.0";
+        n.queue = [];
+        t = b.createElement(e);
+        t.async = !0;
+        t.src = v;
+        s = b.getElementsByTagName(e)[0];
+        s.parentNode.insertBefore(t, s);
+      })(
+        window,
+        document,
+        "script",
+        "https://connect.facebook.net/en_US/fbevents.js",
+      );
+      fbq("init", "2272214979975401");
+      fbq("track", "PageView");
+    </script>
+    <noscript
+      ><img
+        height="1"
+        width="1"
+        style="display: none"
+        src="https://www.facebook.com/tr?id=2272214979975401&ev=PageView&noscript=1"
+    /></noscript>
+
+    <!--  End Meta Pixel Code -->
+
+    <!-- TikTok Pixel Code Start -->
+    <script>
+      !(function (w, d, t) {
+        w.TiktokAnalyticsObject = t;
+        var ttq = (w[t] = w[t] || []);
+        ((ttq.methods = [
+          "page",
+          "track",
+          "identify",
+          "instances",
+          "debug",
+          "on",
+          "off",
+          "once",
+          "ready",
+          "alias",
+          "group",
+          "enableCookie",
+          "disableCookie",
+          "holdConsent",
+          "revokeConsent",
+          "grantConsent",
+        ]),
+          (ttq.setAndDefer = function (t, e) {
+            t[e] = function () {
+              t.push([e].concat(Array.prototype.slice.call(arguments, 0)));
+            };
+          }));
+        for (var i = 0; i < ttq.methods.length; i++)
+          ttq.setAndDefer(ttq, ttq.methods[i]);
+        ((ttq.instance = function (t) {
+          for (var e = ttq._i[t] || [], n = 0; n < ttq.methods.length; n++)
+            ttq.setAndDefer(e, ttq.methods[n]);
+          return e;
+        }),
+          (ttq.load = function (e, n) {
+            var r = "https://analytics.tiktok.com/i18n/pixel/events.js",
+              o = n && n.partner;
+            ((ttq._i = ttq._i || {}),
+              (ttq._i[e] = []),
+              (ttq._i[e]._u = r),
+              (ttq._t = ttq._t || {}),
+              (ttq._t[e] = +new Date()),
+              (ttq._o = ttq._o || {}),
+              (ttq._o[e] = n || {}));
+            n = document.createElement("script");
+            ((n.type = "text/javascript"),
+              (n.async = !0),
+              (n.src = r + "?sdkid=" + e + "&lib=" + t));
+            e = document.getElementsByTagName("script")[0];
+            e.parentNode.insertBefore(n, e);
+          }));
+
+        ttq.load("D1IG32RC77U8KGGDDN0G");
+        ttq.page();
+      })(window, document, "ttq");
+    </script>
+    <!-- TikTok Pixel Code End -->
+  </head>
+  <body style="position: relative">
+    <div id="root">
+      <div class="boot" dir="rtl" role="status" aria-live="polite">
+        <div class="boot-bar"></div>
+        <div class="boot-body">
+          <div class="boot-block boot-visual"></div>
+          <div class="boot-block boot-line"></div>
+          <div class="boot-block boot-line short"></div>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>
