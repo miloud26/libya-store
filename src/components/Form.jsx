@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 
 import { Box, Typography, TextField, Button } from "@mui/material";
 import { useNavigate } from "react-router-dom";
@@ -66,11 +66,8 @@ const orderWasSaved = async (response) => {
 };
 
 function Form({ id }) {
-  const [wilayaCommuneInfo, setWilayaCommuneInfo] = useState([]);
-
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
-  const [wilaya, setWilaya] = useState("");
   const [commune, setCommune] = useState("");
 
   const [quantity, setQuantity] = useState("1");
@@ -91,49 +88,9 @@ function Form({ id }) {
 
   const { price, delevery, url, name: title } = product;
 
-  useEffect(() => {
-    let active = true;
-
-    import("./wilayaCommuneInfo.js")
-      .then((module) => {
-        if (active) {
-          setWilayaCommuneInfo(module.wilayaCommuneInfo);
-        }
-      })
-      .catch((error) => {
-        console.error("Failed to load wilaya data:", error);
-      });
-
-    return () => {
-      active = false;
-    };
-  }, []);
-
-  const wilayaInfo = useMemo(() => {
-    return wilayaCommuneInfo.map(({ id, name }) => ({
-      id,
-      name,
-    }));
-  }, [wilayaCommuneInfo]);
-
-  const communes = useMemo(() => {
-    const selectedWilaya = wilayaCommuneInfo.find(
-      (item) => item.name.split(" - ")[0].trim() === wilaya,
-    );
-
-    if (!selectedWilaya) return [];
-
-    return Object.keys(selectedWilaya)
-      .filter((key) => /^com\d+$/.test(key))
-      .map((key) => selectedWilaya[key])
-      .filter(Boolean);
-  }, [wilayaCommuneInfo, wilaya]);
-
   const normalizedPhone = phone.replace(/\s+/g, "");
   const validPhone = /^0[5-7]\d{8}$/.test(normalizedPhone);
   const correctNumber = Boolean(normalizedPhone) && !validPhone;
-  const isFormValid =
-    validPhone && Boolean(name.trim()) && Boolean(wilaya) && Boolean(commune);
 
   useEffect(() => {
     const lastOrderTime = localStorage.getItem("lastOrderTime");
@@ -190,10 +147,6 @@ function Form({ id }) {
       return;
     }
 
-    if (!name.trim() || !wilaya || !commune) {
-      return;
-    }
-
     if (!url) {
       setSubmitError("تعذر إرسال الطلب. رابط الإرسال غير متوفر.");
       return;
@@ -223,7 +176,7 @@ function Form({ id }) {
       formData.append("product", title);
       formData.append("name", name.trim());
       formData.append("phone", normalizedPhone);
-      formData.append("wilaya", wilaya);
+      //.append("wilaya", wilaya);
       formData.append("commune", commune);
 
       const orderQty = Math.max(1, Number(quantity) || 1);
@@ -321,15 +274,6 @@ function Form({ id }) {
         <Box>
           {fakeBtn ? (
             <Box margin="50px 0">
-              <Typography
-                sx={{
-                  fontSize: "32px",
-                  textAlign: "center",
-                }}
-              >
-                {`التوصيل لولايتك ${wilaya} غير متوفر الآن`}
-              </Typography>
-
               <Typography
                 sx={{
                   fontSize: "32px",
@@ -451,44 +395,30 @@ function Form({ id }) {
                     }}
                   />
 
-                  <select
-                    className="fast-select"
+                  <TextField
                     required
-                    aria-label="الولاية"
-                    value={wilaya}
-                    disabled={isSubmitting}
-                    onChange={(e) => {
-                      setCommune("");
-                      setWilaya(e.target.value);
-                    }}
-                  >
-                    <option value="">اختر الولاية</option>
-
-                    {wilayaInfo.slice(1).map((item) => (
-                      <option key={item.id} value={item.name.split(" - ")[0]}>
-                        {item.id} -{" "}
-                        {item.name.split(" - ").slice(1).join(" - ").trim() ||
-                          item.name}
-                      </option>
-                    ))}
-                  </select>
-
-                  <select
-                    className="fast-select"
-                    required
-                    aria-label="البلدية"
+                    fullWidth
+                    variant="outlined"
+                    placeholder="العنوان الكامل"
                     value={commune}
-                    disabled={!wilaya || isSubmitting}
+                    disabled={isSubmitting}
+                    inputProps={{
+                      dir: "rtl",
+                      "aria-label": "العنوان الكامل",
+                    }}
                     onChange={(e) => setCommune(e.target.value)}
-                  >
-                    <option value="">اختر البلدية</option>
-
-                    {communes.map((item) => (
-                      <option key={item} value={item.split(" - ")[0]}>
-                        {item.split(" - ").slice(1).join(" - ").trim() || item}
-                      </option>
-                    ))}
-                  </select>
+                    sx={{
+                      "& .MuiOutlinedInput-root": {
+                        height: "50px",
+                        borderRadius: "3px",
+                        fontSize: "14px",
+                      },
+                      "& input::placeholder": {
+                        opacity: 1,
+                        color: "#b7b7b7",
+                      },
+                    }}
+                  />
                 </Box>
 
                 {submitError && (
@@ -532,36 +462,7 @@ function Form({ id }) {
                     direction: "rtl",
                   }}
                 >
-                  <Box>
-                    <div
-                      dir="rtl"
-                      style={{
-                        boxSizing: "border-box",
-                        width: "100%",
-                        margin: "0 0 10px",
-                        padding: "12px 14px",
-                        background: "#f7f7f7",
-                        border: "1px solid #e2e2e2",
-                        borderRadius: "10px",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        gap: "8px",
-                        fontFamily: "Arial, sans-serif",
-                        textAlign: "center",
-                        color: "#222",
-                      }}
-                    >
-                      <span style={{ fontSize: "19px" }}>🎁</span>
-                      <span style={{ fontSize: "14px", lineHeight: 1.7 }}>
-                        عند طلب{" "}
-                        <strong style={{ fontSize: "16px" }}>كمية 2</strong>{" "}
-                        <span style={{ color: "#16803c", fontWeight: 700 }}>
-                          التوصيل مجاني!
-                        </span>
-                      </span>
-                    </div>
-                  </Box>
+                  <Box></Box>
                   <Box
                     sx={{
                       display: "flex",
@@ -688,7 +589,7 @@ function Form({ id }) {
                   </Box>
 
                   <Button
-                    disabled={!isFormValid || orderCooldown || isSubmitting}
+                    disabled={orderCooldown || isSubmitting}
                     variant="contained"
                     type="submit"
                     sx={{
