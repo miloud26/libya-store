@@ -62,7 +62,7 @@ export default function Page01() {
             <span className="old">{product.hashprice} دج</span>
 
             <strong>
-              {product.price} <small>دج</small>
+              {product.price} <small>دل</small>
             </strong>
           </Box>
         </Box>
