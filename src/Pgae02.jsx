@@ -4,7 +4,7 @@ import { useParams } from "react-router-dom";
 import Form from "./components/Form";
 import { data } from "./data";
 import { useEffect, useState } from "react";
-
+//ok
 export default function Page02() {
   // The product to show comes from the route (/product/:id) and falls back to
   // the original product for the legacy /products/page01 link.
