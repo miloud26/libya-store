@@ -494,7 +494,7 @@ function Form({ id }) {
                       {/*+quantity === 1 || product.delevery == 0
                         ? `${+product.delevery} دل`
                         : "مجاني"*/}{" "}
-                      مجاني
+                      على حسب المنطقة
                     </strong>
                   </Box>
 

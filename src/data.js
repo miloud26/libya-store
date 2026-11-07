@@ -159,7 +159,7 @@ export const data = [
     phone: "",
     hashprice: "269",
     price: "199",
-    delevery: "على حسب المنطقة",
+    delevery: "0",
     clr: [],
     size: [],
     descImag1: `${process.env.PUBLIC_URL}/images/07/desc.webp`,
