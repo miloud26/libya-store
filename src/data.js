@@ -174,4 +174,26 @@ export const data = [
     description:
       "جيلي رجالي أنيق وعملي، فيه سوستة من قدام وجيبين، يعطيك لوك مرتب ويناسب لبستك اليومية.",
   },
+  {
+    id: "l-8",
+    name: "نظارات قراءة معدنية قابلة للطي مع حافظة",
+    slug: "",
+    phone: "",
+    hashprice: "229",
+    price: "199",
+    delevery: "0",
+    clr: [],
+    size: [],
+    descImag1: `${process.env.PUBLIC_URL}/images/08/desc.webp`,
+    themImg: `${process.env.PUBLIC_URL}/images/08/th.webp`,
+    url: "https://script.google.com/macros/s/AKfycbwNU_6_OCP7mKNpwcfTOw1sgn8HodRwZ-brbOt8tS4NNj-r0eYTY1Qij3kx7_f4UGqmOw/exec",
+    // Optional fields used by the store pages (homepage, /products, cards).
+    // They are additive only — the product page and the order flow never read
+    // them, so the existing behaviour is unchanged.
+    category: "إكسسوارات",
+    featured: true,
+    badge: "",
+    description:
+      "نظارات قراءة أنيقة بإطار معدني فضي وعدسات تساعد على حجب الضوء الأزرق، بتصميم قابل للطي وخفيف الوزن، تأتي مع علبة عملية للحفظ والتنقل. متوفرة بدرجات قراءة متعددة من +100 إلى +400.",
+  },
 ];
