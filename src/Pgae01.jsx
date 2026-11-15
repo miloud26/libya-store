@@ -59,7 +59,7 @@ export default function Page01() {
           <Typography component="h1">{product.name}</Typography>
 
           <Box className="price">
-            <span className="old">{product.hashprice} دج</span>
+            <span className="old">{product.hashprice} دل</span>
 
             <strong>
               {product.price} <small>دل</small>
