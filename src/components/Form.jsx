@@ -91,6 +91,7 @@ function Form({ id }) {
   const normalizedPhone = phone.replace(/\s+/g, "");
   const validPhone = /^0[9]\d{8}$/.test(normalizedPhone);
   const correctNumber = Boolean(normalizedPhone) && !validPhone;
+  const isFormValid = validPhone && Boolean(name.trim()) && Boolean(commune);
 
   useEffect(() => {
     const lastOrderTime = localStorage.getItem("lastOrderTime");
@@ -147,6 +148,10 @@ function Form({ id }) {
       return;
     }
 
+    if (!name.trim()) {
+      return;
+    }
+
     if (!url) {
       setSubmitError("تعذر إرسال الطلب. رابط الإرسال غير متوفر.");
       return;
@@ -176,7 +181,7 @@ function Form({ id }) {
       formData.append("product", title);
       formData.append("name", name.trim());
       formData.append("phone", normalizedPhone);
-      //.append("wilaya", wilaya);
+      formData.append("wilaya", " ");
       formData.append("commune", commune);
 
       const orderQty = Math.max(1, Number(quantity) || 1);
@@ -274,6 +279,15 @@ function Form({ id }) {
         <Box>
           {fakeBtn ? (
             <Box margin="50px 0">
+              <Typography
+                sx={{
+                  fontSize: "32px",
+                  textAlign: "center",
+                }}
+              >
+                {`التوصيل لولايتك ${""} غير متوفر الآن`}
+              </Typography>
+
               <Typography
                 sx={{
                   fontSize: "32px",
@@ -444,10 +458,7 @@ function Form({ id }) {
                       marginTop: "10px",
                       fontWeight: 600,
                     }}
-                  >
-                    لقد قمت بالفعل بإرسال طلب. يمكنك إرسال طلب جديد بعد مرور 24
-                    ساعة.
-                  </Typography>
+                  ></Typography>
                 )}
                 <Box
                   sx={{
@@ -462,7 +473,50 @@ function Form({ id }) {
                     direction: "rtl",
                   }}
                 >
-                  <Box></Box>
+                  <Box>
+                    <div
+                      dir="rtl"
+                      style={{
+                        boxSizing: "border-box",
+                        width: "100%",
+                        margin: "0 0 10px",
+                        padding: "12px 14px",
+                        background: "#f7f7f7",
+                        border: "1px solid #e2e2e2",
+                        borderRadius: "10px",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        gap: "8px",
+                        fontFamily: "Arial, sans-serif",
+                        textAlign: "center",
+                        color: "#222",
+                        animation: "softZoom 1.1s ease-in-out infinite",
+                      }}
+                    >
+                      <span style={{ fontSize: "19px" }}>🎁</span>
+                      <span style={{ fontSize: "14px", lineHeight: 1.7 }}>
+                        عند طلب{" "}
+                        <strong style={{ fontSize: "16px" }}>كمية 2</strong>{" "}
+                        <span style={{ color: "#16803c", fontWeight: 700 }}>
+                          التوصيل مجاني!
+                        </span>
+                      </span>
+
+                      <style>
+                        {`
+      @keyframes softZoom {
+        0%, 100% {
+          transform: scale(1);
+        }
+        50% {
+          transform: scale(1.04);
+        }
+      }
+    `}
+                      </style>
+                    </div>
+                  </Box>
                   <Box
                     sx={{
                       display: "flex",
@@ -490,15 +544,13 @@ function Form({ id }) {
                     }}
                   >
                     <span>سعر التوصيل</span>
-                    <strong style={{ color: "#222", fontWeight: 600 }}>
-                      {/*+quantity === 1 || product.delevery == 0
-                        ? `${+product.delevery} دل`
-                        : "مجاني"*/}{" "}
-                      على حسب المنطقة
+                    <strong style={{ color: "#dc1818", fontWeight: "bold" }}>
+                      {/*+quantity === 1 ? product.delevery : 0*/} على حسب
+                      المنطقة
                     </strong>
                   </Box>
 
-                  <Box
+                  {/* <Box
                     sx={{
                       display: "flex",
                       justifyContent: "space-between",
@@ -515,9 +567,9 @@ function Form({ id }) {
                       {+quantity === 1
                         ? +product.price + +product.delevery
                         : +product.price * +quantity}{" "}
-                      دل
+                      دل{" "}
                     </strong>
-                  </Box>
+                  </Box> */}
                 </Box>
                 <Box
                   sx={{
@@ -589,7 +641,7 @@ function Form({ id }) {
                   </Box>
 
                   <Button
-                    disabled={orderCooldown || isSubmitting}
+                    disabled={!isFormValid || orderCooldown || isSubmitting}
                     variant="contained"
                     type="submit"
                     sx={{
