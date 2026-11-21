@@ -196,4 +196,26 @@ export const data = [
     description:
       "نظارات قراءة أنيقة بإطار معدني فضي وعدسات تساعد على حجب الضوء الأزرق، بتصميم قابل للطي وخفيف الوزن، تأتي مع علبة عملية للحفظ والتنقل. متوفرة بدرجات قراءة متعددة من +100 إلى +400.",
   },
+  {
+    id: "l-9",
+    name: "أرجوحة أطفال",
+    slug: "",
+    phone: "",
+    hashprice: "370",
+    price: "310",
+    delevery: "0",
+    clr: [],
+    size: [],
+    descImag1: `${process.env.PUBLIC_URL}/images/09/desc.webp`,
+    themImg: `${process.env.PUBLIC_URL}/images/09/th.webp`,
+    url: "https://script.google.com/macros/s/AKfycbwNU_6_OCP7mKNpwcfTOw1sgn8HodRwZ-brbOt8tS4NNj-r0eYTY1Qij3kx7_f4UGqmOw/exec",
+    // Optional fields used by the store pages (homepage, /products, cards).
+    // They are additive only — the product page and the order flow never read
+    // them, so the existing behaviour is unchanged.
+    category: "ألعاب الأطفال",
+    featured: true,
+    badge: "",
+    description:
+      "امنح طفلك أوقاتاً مليئة بالمرح واللعب مع أرجوحة الأطفال ذات المقعد الأخضر المريح والحبال الصفراء الطويلة",
+  },
 ];
